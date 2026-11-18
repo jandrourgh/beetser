@@ -1,0 +1,42 @@
+# TrueNAS SCALE custom app (Docker Compose)
+#
+# Apps -> Discover Apps -> Custom App -> paste this YAML (or install with
+# `docker compose -f truenas/custom-app.yaml up -d`).
+#
+# Adjust the two host paths and the password before installing.
+
+services:
+  beetser:
+    image: ghcr.io/beetser/beetser:0.1.0
+    container_name: beetser
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    environment:
+      BEETSER_DATA_DIR: /config
+      BEETSER_PASSWORD: change-me
+      PUID: "568"
+      PGID: "568"
+      TZ: Etc/UTC
+    volumes:
+      # App data, beets database, generated configs and logs.
+      - /mnt/tank/apps/beetser:/config
+      # One mount per service/dataset. Keep only the ones you need (or add
+      # more). Each container path is an origin you can add in the UI.
+      - /mnt/tank/media/soulseek:/media/soulseek
+      - /mnt/tank/media/downloads:/media/downloads
+      - /mnt/tank/media/incoming:/media/incoming
+      # Optional central destination for imports that leave their origin:
+      - /mnt/tank/music:/music
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8080/api/system/health', timeout=4)",
+        ]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 30s

@@ -1,0 +1,12 @@
+.git
+.venv
+__pycache__
+**/__pycache__
+frontend/node_modules
+frontend/dist
+backend/tests
+config
+*.db
+*.bak
+*.pickle
+.env

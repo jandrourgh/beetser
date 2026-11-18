@@ -1,0 +1,26 @@
+# Multiple media mounts — one per service/origin.
+#
+# Use this file when different services write to different host folders:
+#
+#   A) Explicit (nothing to copy):
+#      docker compose -f docker-compose.yml -f docker-compose.multi-media.yml up -d
+#
+#   B) Permanent:
+#      cp docker-compose.multi-media.yml docker-compose.override.yml
+#      (docker-compose.override.yml is git-ignored and auto-loaded)
+#
+# `!override` replaces the single /media parent mount from docker-compose.yml,
+# so the container only sees the explicit paths below. Add or remove entries
+# to match your services; each container path is an origin in the UI.
+#
+# The folders must exist on the host before starting the container.
+
+services:
+  beetser:
+    volumes: !override
+      - ${BEETSER_CONFIG_PATH:-./config}:/config
+      - ${BEETSER_MEDIA_1:-./media/soulseek}:/media/soulseek
+      - ${BEETSER_MEDIA_2:-./media/downloads}:/media/downloads
+      - ${BEETSER_MEDIA_3:-./media/incoming}:/media/incoming
+      # Optional: shared destination for imports that leave their origin.
+      # - ${BEETSER_MUSIC_PATH:-./media/music}:/music

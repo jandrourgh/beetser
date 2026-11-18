@@ -1,0 +1,18 @@
+# Default values used by the chart templates.
+# Keep the image tag in sync with app_version.
+
+images:
+  image:
+    repository: ghcr.io/beetser/beetser
+    tag: 0.1.0
+
+beetser:
+  port: 8080
+  password: ""
+  data_path: /mnt/tank/apps/beetser
+  media_path: /mnt/tank/media
+  puid: 568
+  pgid: 568
+  scan_interval: 300
+  settle_seconds: 30
+  import_mode: move

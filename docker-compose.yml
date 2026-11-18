@@ -1,0 +1,37 @@
+services:
+  beetser:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: beetser:local
+    container_name: beetser
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    environment:
+      # Configured through .env (see .env.example). Override in your shell if needed.
+      BEETSER_PASSWORD: ${BEETSER_PASSWORD:-change-me}
+      BEETSER_DATA_DIR: /config
+      BEETSER_PORT: 8080
+      # Match these to the owner of your media files.
+      PUID: "${PUID:-1000}"
+      PGID: "${PGID:-1000}"
+      TZ: ${TZ:-Etc/UTC}
+    volumes:
+      - ${BEETSER_CONFIG_PATH:-./config}:/config
+      # Default: one parent folder that contains all origin/destination trees.
+      # For one mount per service/dataset instead, use docker-compose.multi-media.yml
+      # (or copy it to docker-compose.override.yml).
+      - ${BEETSER_MEDIA_PATH:-./media}:/media
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8080/api/system/health', timeout=4)",
+        ]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 30s

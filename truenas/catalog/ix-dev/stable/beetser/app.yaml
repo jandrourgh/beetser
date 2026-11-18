@@ -1,0 +1,32 @@
+app_version: 0.1.0
+capabilities: []
+categories:
+  - media
+changelog: Initial Beetser release.
+date_added: "2026-11-18"
+description: A modern self-hosted frontend and automation layer for beets with multiple watched origins, automatic tagging, a review queue and duplicate protection.
+home: https://github.com/beetser/beetser
+host_mounts: []
+icon: https://raw.githubusercontent.com/beetser/beetser/main/docs/icon.png
+keywords:
+  - beets
+  - music
+  - tagging
+  - musicbrainz
+  - metadata
+lib_version: "2.1.0"
+lib_version_hash: ""
+maintainers:
+  - email: maintainers@beetser.invalid
+    name: Beetser maintainers
+run_as_context:
+  - description: Beetser runs as the configured user (default 568:568 on TrueNAS).
+    gid: 568
+    group_name: apps
+    uid: 568
+    user_name: apps
+sources:
+  - https://github.com/beetser/beetser
+title: Beetser
+train: stable
+version: 1.0.0

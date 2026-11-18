@@ -1,0 +1,17 @@
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+.pytest_cache/
+frontend/node_modules/
+frontend/dist/
+config/
+*.db
+*.db-wal
+*.db-shm
+*.bak
+*.pickle
+.env
+.DS_Store
+media/
+docker-compose.override.yml
