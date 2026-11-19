@@ -1,0 +1,44 @@
+annotations:
+  min_scale_version: 24.10.2.2
+app_version: 0.1.0
+capabilities: []
+categories:
+- media
+changelog_url: https://github.com/wabasi/beetser/tags
+date_added: '2026-11-19'
+description: A modern self-hosted frontend and automation layer for beets. Watches
+  several folders, tags new albums with MusicBrainz, asks for confirmation when a
+  match is unclear and keeps the beets library free of duplicates.
+home: https://github.com/wabasi/beetser
+host_mounts: []
+icon: https://media.sys.truenas.net/apps/beetser/icons/icon.png
+keywords:
+- media
+- music
+- beets
+- tagging
+- musicbrainz
+- metadata
+lib_version: 2.3.21
+lib_version_hash: dd32473980659518124d9955045ec3b5b08975875cb9c2a0397603dba280bb79
+maintainers:
+- email: dev@truenas.com
+  name: truenas
+  url: https://www.ixsystems.com/
+name: beetser
+run_as_context:
+- description: Container [beetser] can run as any non-root user and group.
+  gid: 568
+  group_name: Host group is [apps]
+  uid: 568
+  user_name: Host user is [apps]
+screenshots:
+- https://media.sys.truenas.net/apps/beetser/screenshots/screenshot1.png
+- https://media.sys.truenas.net/apps/beetser/screenshots/screenshot2.png
+sources:
+- https://apps.truenas.com/catalog/beetser_community/
+- https://ghcr.io/wabasi/beetser
+- https://github.com/wabasi/beetser
+title: Beetser
+train: community
+version: 1.0.0

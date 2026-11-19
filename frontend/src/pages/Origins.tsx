@@ -6,6 +6,7 @@ import {
   Folder,
   FolderInput,
   FolderOpen,
+  FolderTree,
   HardDrive,
   Pencil,
   Plus,
@@ -31,15 +32,21 @@ import {
   Textarea,
 } from "../components/ui";
 import { apiClient } from "../lib/api";
-import type { Origin, OriginInput } from "../lib/types";
+import type { EffectiveImportMode, ImportMode, Origin, OriginInput } from "../lib/types";
 import { cn, formatRelative } from "../lib/utils";
+
+const MODE_LABELS: Record<EffectiveImportMode, string> = {
+  tag: "tags only",
+  move: "move",
+  copy: "copy",
+};
 
 interface FormState {
   name: string;
   path: string;
   destination: string;
   sameDestination: boolean;
-  import_mode: "inherit" | "move" | "copy";
+  import_mode: ImportMode;
   auto_tag: "inherit" | "enabled" | "disabled";
   auto_tag_threshold: string;
   settled_seconds: string;
@@ -116,6 +123,24 @@ export function OriginsPage() {
     onError: (error) => toast.error(error instanceof Error ? error.message : "Test failed"),
   });
 
+  const organize = useMutation({
+    mutationFn: (id: string) => apiClient.organizeOrigin(id),
+    onSuccess: (result) => {
+      if (result.total === 0) {
+        toast.info("This origin has no imported albums yet");
+      } else if (result.failed > 0) {
+        toast.warning(
+          `${result.organized} of ${result.total} albums organized · ${result.failed} failed`,
+        );
+      } else {
+        toast.success(`${result.organized} album(s) organized into artist/album folders`);
+      }
+      void queryClient.invalidateQueries();
+    },
+    onError: (error) =>
+      toast.error(error instanceof Error ? error.message : "Could not organize"),
+  });
+
   const remove = useMutation({
     mutationFn: (id: string) => apiClient.deleteOrigin(id),
     onSuccess: () => {
@@ -173,7 +198,7 @@ export function OriginsPage() {
 
             <div className="mt-4 grid grid-cols-2 gap-3 text-[11px]">
               <div>
-                <p className="text-muted">Destination</p>
+                <p className="text-muted">Destination (move/copy)</p>
                 <p className="mt-0.5 truncate font-mono text-fg" title={origin.destination}>
                   {origin.destination_is_default ? "same as origin" : origin.destination}
                 </p>
@@ -181,7 +206,7 @@ export function OriginsPage() {
               <div>
                 <p className="text-muted">Import mode</p>
                 <p className="mt-0.5 flex items-center gap-1.5 text-fg">
-                  <Tag>{origin.effective_import_mode}</Tag>
+                  <Tag>{MODE_LABELS[origin.effective_import_mode]}</Tag>
                   {origin.import_mode === "inherit" && <span className="text-muted">(global)</span>}
                 </p>
               </div>
@@ -253,6 +278,29 @@ export function OriginsPage() {
                 icon={<HardDrive className="h-3.5 w-3.5" />}
               >
                 Test
+              </Button>
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={() => {
+                  if (
+                    window.confirm(
+                      "Organize every imported album of this origin into artist/album folders?",
+                    )
+                  ) {
+                    organize.mutate(origin.id);
+                  }
+                }}
+                loading={organize.isPending && organize.variables === origin.id}
+                disabled={!origin.job_counts.imported}
+                title={
+                  origin.job_counts.imported
+                    ? "Sort this origin's albums into artist/album folders"
+                    : "No imported albums yet"
+                }
+                icon={<FolderTree className="h-3.5 w-3.5" />}
+              >
+                Organize
               </Button>
               <Button size="sm" variant="ghost" onClick={() => setEditing(origin)} icon={<Pencil className="h-3.5 w-3.5" />}>
                 Edit
@@ -431,8 +479,8 @@ function OriginModal({
 
           <div className="rounded-xl border border-line bg-surface-2/30 p-3">
             <Switch
-              label="Organize inside the origin folder"
-              description="When enabled, music is sorted in place (by artist and album). Turn off to send it to a separate destination."
+              label="Keep music inside the origin folder"
+              description="Imports that move or copy (and the Organize action) sort files into artist/album folders inside the origin. Turn off to use a separate destination."
               checked={form.sameDestination}
               onChange={(value) => {
                 set("sameDestination", value);
@@ -458,6 +506,7 @@ function OriginModal({
             <Field label="Import mode" hint="defaults to the global setting">
               <Select value={form.import_mode} onChange={(event) => set("import_mode", event.target.value as FormState["import_mode"])}>
                 <option value="inherit">Use global default</option>
+                <option value="tag">Tag only (keep files in place)</option>
                 <option value="move">Move files</option>
                 <option value="copy">Copy files</option>
               </Select>

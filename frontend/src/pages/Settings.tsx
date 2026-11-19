@@ -119,7 +119,7 @@ export function SettingsPage() {
       <div className="grid gap-4 xl:grid-cols-2">
         <Section
           title="Importing"
-          description="How files move from an origin into the library."
+          description="How files are imported. Tag only writes metadata in place; organising folders is a separate step."
           icon={<FolderCog className="h-4 w-4" />}
         >
           <Field label="Default import mode" hint="origins can override this">
@@ -127,8 +127,9 @@ export function SettingsPage() {
               value={draft.import_mode}
               onChange={(event) => set("import_mode", event.target.value as AppSettings["import_mode"])}
             >
-              <option value="move">Move files (leave the origin empty)</option>
-              <option value="copy">Copy files (keep the originals)</option>
+              <option value="tag">Tag only — write tags, keep files where they are</option>
+              <option value="move">Move files into artist/album folders</option>
+              <option value="copy">Copy files, keep the originals</option>
             </Select>
           </Field>
           <Field label="Album path format" hint="beets template">

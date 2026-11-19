@@ -21,6 +21,7 @@ from .events import EventBus
 from .models import Activity, ImportedFingerprint, Job, Origin, TrackedFile
 from .notify import Notifier
 from .scanner import Scanner, prune_empty_dirs
+from .serializers import origin_spec
 from .settings import Settings
 from .settings_store import SettingsStore
 from .utils import dumps, loads, normalize_text, tail, utcnow
@@ -467,7 +468,7 @@ class ImportService:
                 job.state = "failed"
                 job.error = "Origin was deleted"
                 return
-            spec = _origin_spec(origin)
+            spec = origin_spec(origin)
             files = loads(job.files_json, [])
             applied = loads(job.applied_fields_json, {}) or {}
             kind = job.kind
@@ -543,9 +544,9 @@ class ImportService:
                 tracked = session.get(TrackedFile, path)
                 if tracked is None:
                     continue
-                if mode == "copy":
-                    # The originals stay in the origin; keep them tracked so a
-                    # rescan does not queue them as new files again.
+                if mode != "move":
+                    # Tag-only and copy imports leave the files in the origin;
+                    # keep them tracked so a rescan does not queue them again.
                     tracked.status = "imported"
                     tracked.job_id = job_id
                 else:
@@ -559,17 +560,29 @@ class ImportService:
                     sha = file_sha256(path)
                 except OSError:
                     sha = None
-                session.add(
-                    TrackedFile(
-                        path=path,
-                        origin_id=origin_id,
-                        size=os.path.getsize(path) if os.path.exists(path) else 0,
-                        mtime=os.path.getmtime(path) if os.path.exists(path) else 0,
-                        sha256=sha,
-                        status="imported",
-                        job_id=job_id,
+                tracked_row = session.get(TrackedFile, path)
+                if tracked_row is None:
+                    session.add(
+                        TrackedFile(
+                            path=path,
+                            origin_id=origin_id,
+                            size=os.path.getsize(path) if os.path.exists(path) else 0,
+                            mtime=os.path.getmtime(path) if os.path.exists(path) else 0,
+                            sha256=sha,
+                            status="imported",
+                            job_id=job_id,
+                        )
                     )
-                )
+                else:
+                    tracked_row.size = (
+                        os.path.getsize(path) if os.path.exists(path) else 0
+                    )
+                    tracked_row.mtime = (
+                        os.path.getmtime(path) if os.path.exists(path) else 0
+                    )
+                    tracked_row.sha256 = sha or tracked_row.sha256
+                    tracked_row.status = "imported"
+                    tracked_row.job_id = job_id
                 if sha:
                     session.merge(
                         ImportedFingerprint(
@@ -872,19 +885,6 @@ class ImportService:
         self.notifier.notify(title=title, message=message, kind="review")
 
 
-def _origin_spec(origin: Origin) -> SimpleNamespace:
-    return SimpleNamespace(
-        id=origin.id,
-        name=origin.name,
-        path=origin.path,
-        destination=origin.destination,
-        effective_destination=origin.effective_destination,
-        import_mode=origin.import_mode,
-        path_format=origin.path_format,
-        singleton_path_format=origin.singleton_path_format,
-        auto_tag=origin.auto_tag,
-        auto_tag_threshold=origin.auto_tag_threshold,
-    )
 
 
 def _majority_tags(

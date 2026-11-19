@@ -6,7 +6,7 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, Field, field_validator
 
-ImportMode = Literal["inherit", "move", "copy"]
+ImportMode = Literal["inherit", "tag", "move", "copy"]
 AutoTagMode = Literal["inherit", "enabled", "disabled"]
 
 

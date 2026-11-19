@@ -3,7 +3,8 @@ export interface AuthStatus {
   setup_required: boolean;
 }
 
-export type ImportMode = "inherit" | "move" | "copy";
+export type ImportMode = "inherit" | "tag" | "move" | "copy";
+export type EffectiveImportMode = "tag" | "move" | "copy";
 export type AutoTagMode = "inherit" | "enabled" | "disabled";
 
 export interface Origin {
@@ -13,7 +14,7 @@ export interface Origin {
   destination: string;
   destination_is_default: boolean;
   import_mode: ImportMode;
-  effective_import_mode: "move" | "copy";
+  effective_import_mode: EffectiveImportMode;
   path_format: string | null;
   singleton_path_format: string | null;
   auto_tag: AutoTagMode;
@@ -260,6 +261,26 @@ export interface AlbumArtResponse {
   album: AlbumDetail;
 }
 
+export interface AlbumOrganizeResponse {
+  ok: boolean;
+  organized: number;
+  album: AlbumDetail;
+}
+
+export interface OriginOrganizeFailure {
+  album_id: number;
+  error: string;
+}
+
+export interface OriginOrganizeResponse {
+  ok: boolean;
+  total: number;
+  organized: number;
+  failed: number;
+  album_ids: number[];
+  failures: OriginOrganizeFailure[];
+}
+
 export interface SingleTrack {
   id: number;
   path: string;
@@ -275,7 +296,7 @@ export interface SingleTrack {
 }
 
 export interface AppSettings {
-  import_mode: "move" | "copy";
+  import_mode: EffectiveImportMode;
   path_format: string;
   comp_path_format: string;
   singleton_path_format: string;

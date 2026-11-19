@@ -41,13 +41,16 @@ def test_review_import_and_duplicate_flow(client, tmp_path: Path):
 
     job = wait_for_job(client, origin["id"], {"imported", "failed", "skipped"})
     assert job["state"] == "imported", job["error"]
-    moved = sorted(p.name for p in (incoming / "Flow Artist" / "Flow Album").glob("*.flac"))
-    assert moved == ["01 One.flac", "02 Two.flac"]
+    # Tag-only imports write metadata but never move or rename the files.
+    assert sorted(p.name for p in (incoming / "Album").glob("*.flac")) == [
+        "01.flac",
+        "02.flac",
+    ]
     assert client.get("/api/library/stats").json()["tracks"] == 2
 
     # Dropping the same music into another origin must be flagged as duplicate.
     second = tmp_path / "second"
-    _copy_album(incoming / "Flow Artist" / "Flow Album", second / "Copy")
+    _copy_album(incoming / "Album", second / "Copy")
     duplicate_origin = client.post(
         "/api/origins",
         json={"name": "Second", "path": str(second), "auto_tag": "disabled"},
@@ -225,3 +228,78 @@ def test_album_edit_and_cover_api(client, tmp_path: Path):
     removed = client.delete(f"/api/library/albums/{album['id']}/cover")
     assert removed.status_code == 200
     assert client.get(f"/api/library/albums/{album['id']}/cover").status_code == 404
+
+
+def test_organize_sorts_files_in_place(client, tmp_path: Path):
+    client.app.state.engine.analyze = fake_analyze_factory()
+    from helpers import make_flac
+
+    incoming = tmp_path / "organize"
+    make_flac(incoming / "Raw Download" / "01.flac", title="One", artist="Sort Artist", album="Sort Album")
+    origin = client.post(
+        "/api/origins",
+        json={"name": "Organize", "path": str(incoming), "auto_tag": "disabled"},
+    ).json()
+
+    job = wait_for_job(client, origin["id"], {"needs_review", "duplicate", "failed"})
+    assert client.post(f"/api/jobs/{job['id']}/apply", json={"mode": "asis"}).status_code == 200
+    assert wait_for_job(client, origin["id"], {"imported", "failed"})["state"] == "imported"
+
+    album = client.get("/api/library/albums").json()["albums"][0]
+    assert (incoming / "Raw Download" / "01.flac").is_file()
+
+    organized = client.post(f"/api/library/albums/{album['id']}/organize")
+    assert organized.status_code == 200, organized.text
+    expected = incoming / "Sort Artist" / "Sort Album" / "01 One.flac"
+    assert expected.is_file()
+    assert not (incoming / "Raw Download").exists()
+    assert expected.as_posix() in {
+        track["path"] for track in organized.json()["album"]["tracks"]
+    }
+
+    # The scanner must forget the old path, otherwise reusing it would be
+    # mistaken for an already-imported file.
+    from beetser.models import TrackedFile
+
+    with client.app.state.db.session() as session:
+        paths = {row.path for row in session.query(TrackedFile).all()}
+    assert expected.as_posix() in paths
+    assert not any(path.endswith("Raw Download/01.flac") for path in paths)
+
+
+def test_organize_origin_bulk(client, tmp_path: Path):
+    client.app.state.engine.analyze = fake_analyze_factory()
+    from helpers import make_flac
+
+    incoming = tmp_path / "bulk"
+    for index, album_name in enumerate(("First", "Second"), start=1):
+        make_flac(
+            incoming / f"Drop {index}" / "01.flac",
+            title=f"{album_name} Song",
+            artist="Bulk Artist",
+            album=album_name,
+            track=index,
+        )
+    origin = client.post(
+        "/api/origins",
+        json={"name": "Bulk", "path": str(incoming), "auto_tag": "disabled"},
+    ).json()
+
+    wait_for_job(client, origin["id"], {"needs_review", "duplicate", "failed"})
+    for album_name in ("First", "Second"):
+        jobs = client.get(f"/api/jobs?origin_id={origin['id']}").json()["jobs"]
+        job = next(entry for entry in jobs if entry["album"] == album_name)
+        applied = client.post(f"/api/jobs/{job['id']}/apply", json={"mode": "asis"})
+        assert applied.status_code == 200, applied.text
+        done = wait_for_job(
+            client, origin["id"], {"imported", "failed"}, job_id=job["id"]
+        )
+        assert done["state"] == "imported", done["error"]
+
+    result = client.post(f"/api/origins/{origin['id']}/organize")
+    assert result.status_code == 200, result.text
+    body = result.json()
+    assert body["organized"] == 2, body
+    assert body["failed"] == 0, body
+    assert (incoming / "Bulk Artist" / "First").is_dir()
+    assert (incoming / "Bulk Artist" / "Second").is_dir()

@@ -48,11 +48,11 @@ PY
 
 | Key | Default | Description |
 | --- | --- | --- |
-| `import_mode` | `move` | `move` or `copy`; the default for origins set to *inherit* |
+| `import_mode` | `tag` | `tag` (write tags, leave files in place), `move` or `copy`; the default for origins set to *inherit* |
 | `path_format` | `$albumartist/$album%aunique{}/$track $title` | beets path template for albums |
 | `comp_path_format` | `Compilations/$album%aunique{}/$track $title` | template for Various Artists albums |
 | `singleton_path_format` | `Singletons/$artist/$title` | template for singleton imports |
-| `write_tags` | `true` | Write matched metadata into the files |
+| `write_tags` | `true` | Write matched metadata into the files (`tag` mode always writes tags) |
 | `delete_empty_dirs` | `true` | Remove empty folders left in an origin after a move |
 | `auto_tag_enabled` | `true` | Master switch for automatic imports |
 | `auto_tag_threshold` | `0.85` | Minimum similarity (0–1) for an automatic import |
@@ -126,9 +126,9 @@ Then add one **origin per mount** in the UI:
 
 | Origin path | Destination | Mode |
 | --- | --- | --- |
-| `/media/soulseek` | `/media/soulseek` | copy (keep originals) |
-| `/media/downloads` | `/media/downloads` | move (sort in place) |
-| `/media/incoming` | `/media/incoming` | move |
+| `/media/soulseek` | `/media/soulseek` | tag only (default) |
+| `/media/downloads` | `/media/downloads` | tag only (default) |
+| `/media/incoming` | `/media/incoming` | tag only (default) |
 | `/media/downloads` | `/music` | move (central library) |
 
 The app's path browser (Origins → Browse) shows exactly what is mounted.
@@ -138,6 +138,20 @@ The app's path browser (Origins → Browse) shows exactly what is mounted.
 > folders; Docker mounts one host path per container path.
 
 ### Common layouts
+
+**Tag only, organize later (the default)**
+
+```
+Origin:      /media/downloads
+Destination: /media/downloads      (same as origin)
+Mode:        tag
+```
+
+Imports run like `beet import -CMw`: tags (and cover art) are written in place,
+the folder layout is untouched. When the metadata looks right, press
+**Organize files** on the album (or **Organize** on the origin to do all its
+albums) to sort them into `Artist/Album/…`. Organizing never rewrites tags and
+keeps the files inside the origin folder.
 
 **Inbox → central library (move)**
 
@@ -150,7 +164,7 @@ Mode:        move
 Downloads are tagged, moved to `/media/music/<artist>/<album>/…`, and the inbox
 is left clean.
 
-**Sort in place (the default)**
+**Sort in place (move)**
 
 ```
 Origin:      /media/downloads

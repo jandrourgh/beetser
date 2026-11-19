@@ -34,7 +34,8 @@ adds the parts that make it a comfortable always-on service:
 | --- | --- |
 | Origins | Unlimited watched folders, inotify + periodic scanning, settle time, `.beetser-ignore` markers |
 | Tagging | MusicBrainz lookups in-process, candidate comparison, manual tag editor, no API keys required |
-| Imports | Move or copy, per-origin destination, beets path formats, tag writing, local cover adoption, cover art fetch/embed |
+| Imports | Tag-only by default (files stay where they are), optional move/copy, beets path formats, local cover adoption, cover art fetch/embed |
+| Organizing | One click sorts an album — or every album of an origin — into `Artist/Album` folders |
 | Safety | SHA-256 dedupe, MBID dedupe, album/track matching, duplicate confirmation dialog |
 | Operations | Live activity log, job states, retries, skip/forget, single-admin auth, health endpoint |
 | Deployment | One container, SQLite, no external services, TrueNAS-friendly |
@@ -55,10 +56,13 @@ Then:
 
 1. **Origins → Add origin** and pick the folder where music arrives, e.g.
    `/media/downloads`.
-2. Leave *Organize inside the origin folder* enabled to sort files in place, or
-   choose a separate destination such as `/media/music`.
-3. Drop an album folder into the origin. Beetser scans it, shows the best match
+2. Drop an album folder into the origin. Beetser scans it, shows the best match
    and either imports it or asks you to confirm.
+3. Imports are **tag only** by default: metadata and cover art are written in
+   place, your folder layout is untouched. When the tags look right, press
+   **Organize files** on the album (or **Organize** on the origin) to sort the
+   files into artist/album folders. Prefer the classic behaviour? Set the import
+   mode to *move* or *copy* globally or per origin.
 
 > The container must be able to see your media paths. Mount each host folder at
 > its own container path (see
@@ -96,14 +100,14 @@ More detail: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 
 - [Architecture](docs/ARCHITECTURE.md) — components, data model, state machine, duplicate strategy.
 - [Configuration](docs/CONFIGURATION.md) — environment variables, global settings, per-origin overrides, path formats, webhooks.
-- [TrueNAS SCALE](docs/TRUENAS.md) — custom app install, datasets, permissions, catalog chart scaffold.
+- [TrueNAS SCALE](docs/TRUENAS.md) — custom app install, datasets, permissions, and how to publish to the community catalog.
 - API reference — served by the app at `/api/docs`.
 
 ## Configuration highlights
 
 Global defaults live in **Settings**:
 
-- default import mode (`move`/`copy`), path formats for albums, compilations and singles;
+- default import mode (`tag`/`move`/`copy`), path formats for albums, compilations and singles;
 - auto-tagging on/off, confidence threshold, ambiguity gap;
 - cover art fetch/embed;
 - settle time and full-scan interval;
@@ -149,8 +153,8 @@ sync.
 ### TrueNAS SCALE
 
 Use the ready-made Compose file in [`truenas/custom-app.yaml`](truenas/custom-app.yaml)
-or follow [docs/TRUENAS.md](docs/TRUENAS.md). A catalog chart scaffold lives in
-[`truenas/catalog/ix-dev/stable/beetser`](truenas/catalog/ix-dev/stable/beetser).
+or follow [docs/TRUENAS.md](docs/TRUENAS.md). The community catalog chart lives
+in [`truenas/catalog/ix-dev/community/beetser`](truenas/catalog/ix-dev/community/beetser).
 
 ## Development
 
@@ -182,7 +186,7 @@ backend/beetser/     FastAPI app, worker, scanner, beets integration
 backend/tests/       pytest suite (API, scanner, import, dedupe)
 frontend/src/        React + TypeScript + Tailwind UI
 docker/              entrypoint
-truenas/             custom app compose + catalog chart scaffold
+truenas/             custom app compose + community catalog chart
 docs/                architecture, configuration, TrueNAS guide
 ```
 
@@ -202,4 +206,9 @@ before `1.0`. Issues and pull requests are welcome.
 
 ## License
 
-No license has been chosen yet. Add one before distributing the project.
+Beetser is MIT licensed — see [LICENSE](LICENSE).
+
+It builds on beets (MIT) and other third-party components; a few of them
+(mutagen, Unidecode, FFmpeg) are GPL/LGPL. They are redistributed unmodified and
+their notices are listed in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) and
+shipped inside the image at `/app/licenses/`.

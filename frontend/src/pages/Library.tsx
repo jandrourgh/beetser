@@ -1,4 +1,4 @@
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   ArrowLeft,
   ChevronLeft,
@@ -6,6 +6,7 @@ import {
   Copy,
   Disc3,
   FolderOpen,
+  FolderTree,
   Library as LibraryIcon,
   Music2,
   Pencil,
@@ -272,6 +273,18 @@ function AlbumDetailPage({ albumId, onBack }: { albumId: number; onBack: () => v
   const [editing, setEditing] = useState(false);
   const album = useQuery({ queryKey: ["album", albumId], queryFn: () => apiClient.album(albumId) });
 
+  const organize = useMutation({
+    mutationFn: () => apiClient.organizeAlbum(albumId),
+    onSuccess: (result) => {
+      queryClient.setQueryData(["album", albumId], result.album);
+      void queryClient.invalidateQueries({ queryKey: ["albums"] });
+      void queryClient.invalidateQueries({ queryKey: ["libraryStats"] });
+      toast.success("Album reorganized into artist/album folders");
+    },
+    onError: (error) =>
+      toast.error(error instanceof Error ? error.message : "Could not organize album"),
+  });
+
   const copy = (value: string) => {
     void navigator.clipboard.writeText(value).then(
       () => toast.success("Path copied"),
@@ -313,14 +326,35 @@ function AlbumDetailPage({ albumId, onBack }: { albumId: number; onBack: () => v
         <Button variant="ghost" size="sm" onClick={onBack} icon={<ArrowLeft className="h-4 w-4" />}>
           Back to library
         </Button>
-        <Button
-          size="sm"
-          variant="secondary"
-          onClick={() => setEditing(true)}
-          icon={<Pencil className="h-4 w-4" />}
-        >
-          Edit album
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button
+            size="sm"
+            variant="ghost"
+            loading={organize.isPending}
+            disabled={organize.isPending}
+            onClick={() => {
+              if (
+                window.confirm(
+                  "Move this album's files into artist/album folders? Tags are not modified.",
+                )
+              ) {
+                organize.mutate();
+              }
+            }}
+            title="Sort the files of this album into artist/album folders"
+            icon={<FolderTree className="h-4 w-4" />}
+          >
+            Organize files
+          </Button>
+          <Button
+            size="sm"
+            variant="secondary"
+            onClick={() => setEditing(true)}
+            icon={<Pencil className="h-4 w-4" />}
+          >
+            Edit album
+          </Button>
+        </div>
       </div>
 
       <Card className="overflow-hidden">

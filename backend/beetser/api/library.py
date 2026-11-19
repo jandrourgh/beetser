@@ -8,7 +8,7 @@ consistent with imports.
 from __future__ import annotations
 
 import os
-from types import SimpleNamespace
+from typing import Any
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, Response, UploadFile
 from fastapi.responses import FileResponse
@@ -17,7 +17,9 @@ from sqlalchemy import select
 from ..beets_engine import BeetsEngine
 from ..db import Database
 from ..models import Origin
+from ..organize import organize_albums
 from ..schemas import AlbumUpdate
+from ..serializers import origin_spec
 from .deps import get_db, get_engine, require_auth
 
 router = APIRouter(
@@ -164,7 +166,7 @@ def fetch_album_cover(
 
 def _origin_for_album(
     db: Database, engine: BeetsEngine, album_id: int
-) -> SimpleNamespace | None:
+) -> Any | None:
     detail = engine.album_detail(album_id)
     if detail is None:
         return None
@@ -176,30 +178,55 @@ def _origin_for_album(
         chosen = next((origin for origin in origins if origin.id == flex_id), None)
 
         if chosen is None:
+            # Fall back to the folder the files live in: tag-only imports keep
+            # them inside the origin, move/copy imports inside the destination.
             best_length = -1
             for origin in origins:
-                destination = os.path.normpath(origin.effective_destination)
-                for path in paths:
-                    normalized = os.path.normpath(path)
-                    if normalized != destination and not normalized.startswith(
-                        destination + os.sep
-                    ):
-                        continue
-                    if len(destination) > best_length:
-                        best_length = len(destination)
-                        chosen = origin
+                for base in (origin.path, origin.effective_destination):
+                    root = os.path.normpath(base)
+                    for path in paths:
+                        normalized = os.path.normpath(path)
+                        if normalized != root and not normalized.startswith(
+                            root + os.sep
+                        ):
+                            continue
+                        if len(root) > best_length:
+                            best_length = len(root)
+                            chosen = origin
 
         if chosen is None:
             return None
-        return SimpleNamespace(
-            id=chosen.id,
-            name=chosen.name,
-            path=chosen.path,
-            destination=chosen.destination,
-            effective_destination=chosen.effective_destination,
-            import_mode=chosen.import_mode,
-            path_format=chosen.path_format,
-            singleton_path_format=chosen.singleton_path_format,
-            auto_tag=chosen.auto_tag,
-            auto_tag_threshold=chosen.auto_tag_threshold,
+        return origin_spec(chosen)
+
+
+@router.post("/albums/{album_id}/organize")
+def organize_album(
+    album_id: int,
+    db: Database = Depends(get_db),
+    engine: BeetsEngine = Depends(get_engine),
+) -> dict:
+    """Sort an album into its optimal artist/album folder layout."""
+    if engine.album_detail(album_id) is None:
+        raise HTTPException(404, "Album not found")
+
+    origin = _origin_for_album(db, engine, album_id)
+    if origin is None:
+        raise HTTPException(
+            400, "No origin is linked to this album, so it cannot be organized"
         )
+
+    summary = organize_albums(db, engine, origin, [album_id])
+    failure = next(iter(summary["failures"]), None)
+    if failure is not None:
+        raise HTTPException(
+            400,
+            {
+                "message": failure["error"],
+                "album": engine.album_detail(album_id),
+            },
+        )
+    return {
+        "ok": True,
+        "organized": summary["organized"],
+        "album": engine.album_detail(album_id),
+    }

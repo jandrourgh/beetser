@@ -126,7 +126,7 @@ Imports run in a subprocess:
 
 ```
 python -m beetser.beets_cli -c /config/beets/origins/<id>.yaml import \
-    -q -I (-m|-c) (-s) (-S <release-id>) (-A) --set k=v ... -- <folder>
+    -q -I (-C -M -w | -m | -c) (-s) (-S <release-id>) (-A) --set k=v ... -- <folder>
 ```
 
 Why a subprocess?
@@ -153,6 +153,13 @@ The generated config sets:
 Each import carries `--set=beetser_origin=<id>` and `beetser_job=<id>` as beets
 flexible attributes, so provenance stays attached to library items.
 
+### Import modes
+
+`tag` is the default and mirrors `beet import -CMw`: tags (and cover art) are
+written into the files, which stay exactly where the download client left them.
+`move` and `copy` are opt-in, globally or per origin, and send files to the
+origin destination using the path formats.
+
 ### Absolute paths
 
 beets 2.14 stores paths relative to the configured `directory` when the item
@@ -170,6 +177,21 @@ Beetser compares `MAX(items.id)` before and after:
 
 - new rows → success (recording album IDs, paths and hashing the new files);
 - no new rows → failure/skip, with the CLI output stored in the job log for the UI.
+
+## Organizing after import
+
+Because tag-only imports never rename or move anything, sorting is a separate,
+explicit action: `POST /api/library/albums/<id>/organize` for one album, or
+`POST /api/origins/<id>/organize` for every album of an origin. Both run
+`beet move -a -d <base> id:<album>`, which applies the path formats without
+touching metadata and moves album art with the files.
+
+The base directory is the album's current root: albums still inside their origin
+are sorted in place (`origin/Artist/Album/…`), while albums already moved to a
+destination stay there. Moving files invalidates the scanner bookkeeping, so
+`beetser/organize.py` rewrites the `tracked_files` rows from the old paths to the
+new ones. Without that, a future download reusing the same folder names would be
+mistaken for an already-imported file.
 
 ## Editing albums after import
 

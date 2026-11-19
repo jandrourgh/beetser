@@ -2,6 +2,7 @@ import type {
   ActivityItem,
   AlbumArtResponse,
   AlbumDetail,
+  AlbumOrganizeResponse,
   AlbumSummary,
   AlbumUpdate,
   AlbumUpdateResponse,
@@ -15,6 +16,7 @@ import type {
   LogEntry,
   Origin,
   OriginInput,
+  OriginOrganizeResponse,
   OriginTestResult,
   SingleTrack,
   SystemInfo,
@@ -115,6 +117,8 @@ export const apiClient = {
   updateOrigin: (id: string, input: Partial<OriginInput>) =>
     api<Origin>(`/api/origins/${id}`, json("PATCH", input)),
   deleteOrigin: (id: string) => api<void>(`/api/origins/${id}`, { method: "DELETE" }),
+  organizeOrigin: (id: string) =>
+    api<OriginOrganizeResponse>(`/api/origins/${id}/organize`, { method: "POST" }),
   scanOrigin: (id: string) => api<{ queued: boolean }>(`/api/origins/${id}/scan`, { method: "POST" }),
   testOrigin: (id: string, path?: string, destination?: string) =>
     api<OriginTestResult>(`/api/origins/${id}/test`, json("POST", { path, destination })),
@@ -167,6 +171,8 @@ export const apiClient = {
     api<AlbumArtResponse>(`/api/library/albums/${albumId}/cover`, { method: "DELETE" }),
   fetchAlbumCover: (albumId: number) =>
     api<AlbumArtResponse>(`/api/library/albums/${albumId}/cover/fetch`, { method: "POST" }),
+  organizeAlbum: (albumId: number) =>
+    api<AlbumOrganizeResponse>(`/api/library/albums/${albumId}/organize`, { method: "POST" }),
 
   activity: (params: { limit?: number; before_id?: number; level?: string; category?: string; origin_id?: string } = {}) => {
     const search = new URLSearchParams();

@@ -15,3 +15,6 @@ config/
 .DS_Store
 media/
 docker-compose.override.yml
+# Vendored catalog library and rendered templates (generated on demand)
+truenas/**/templates/library/
+truenas/**/templates/rendered/

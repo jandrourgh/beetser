@@ -40,7 +40,7 @@ def test_origin_crud_and_validation(client, tmp_path: Path):
     origin = created.json()
     assert origin["path"] == str(root)
     assert origin["destination"] == str(root)
-    assert origin["effective_import_mode"] == "move"
+    assert origin["effective_import_mode"] == "tag"
 
     nested = root / "nested"
     nested.mkdir()

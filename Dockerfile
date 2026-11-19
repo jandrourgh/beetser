@@ -36,6 +36,14 @@ RUN pip wheel --wheel-dir /wheels /build/backend
 # ---------------------------------------------------------------------------
 FROM python:3.12-slim AS runtime
 
+LABEL org.opencontainers.image.title="Beetser" \
+      org.opencontainers.image.description="Self-hosted beets frontend with watched origins, MusicBrainz tagging and a review queue" \
+      org.opencontainers.image.source="https://github.com/wabasi/beetser" \
+      org.opencontainers.image.url="https://github.com/wabasi/beetser" \
+      org.opencontainers.image.documentation="https://github.com/wabasi/beetser/tree/main/docs" \
+      org.opencontainers.image.licenses="MIT" \
+      org.opencontainers.image.version="0.1.0"
+
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
     PIP_NO_CACHE_DIR=1 \
@@ -59,8 +67,10 @@ RUN pip install --no-index --find-links=/wheels beetser \
     && rm -rf /wheels
 
 COPY --from=frontend /src/frontend/dist /app/static
+COPY LICENSE THIRD_PARTY_NOTICES.md /app/licenses/
 COPY docker/entrypoint.sh /usr/local/bin/entrypoint.sh
 RUN chmod +x /usr/local/bin/entrypoint.sh \
+    && chmod -R a+r /app/licenses \
     && useradd --uid 1000 --create-home --shell /usr/sbin/nologin beetser \
     && mkdir -p /config /music /app/static \
     && chown -R beetser:beetser /config /music /app

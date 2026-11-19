@@ -65,8 +65,8 @@ def update_settings(
                 raise HTTPException(400, f"{key} must be between {low} and {high}")
             value = int(number) if key in ("settle_seconds", "scan_interval_seconds") else number
         elif key == "import_mode":
-            if value not in ("move", "copy"):
-                raise HTTPException(400, "import_mode must be move or copy")
+            if value not in ("tag", "move", "copy"):
+                raise HTTPException(400, "import_mode must be tag, move or copy")
         elif key in STRING_KEYS:
             if not isinstance(value, str):
                 raise HTTPException(400, f"{key} must be a string")

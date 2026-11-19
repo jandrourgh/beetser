@@ -122,6 +122,16 @@ class ImportResult:
 
 
 @dataclass
+class OrganizeResult:
+    ok: bool
+    album_id: int
+    before: list[str] = field(default_factory=list)
+    after: list[str] = field(default_factory=list)
+    output: str = ""
+    error: str | None = None
+
+
+@dataclass
 class UpdateResult:
     ok: bool
     output: str = ""
@@ -211,10 +221,21 @@ class BeetsEngine:
             return origin.singleton_path_format
         return str(self.store.get(default_key) or "").strip()
 
-    def write_origin_config(self, origin: Any) -> Path:
-        """Generate the beets config used by one origin's imports."""
+    def write_origin_config(
+        self,
+        origin: Any,
+        *,
+        directory: str | Path | None = None,
+        variant: str = "",
+    ) -> Path:
+        """Generate the beets config used by one origin's imports.
+
+        ``directory`` overrides the configured destination, which the
+        organize action uses to re-sort files inside their current root.
+        ``variant`` keeps alternative configs in a separate file.
+        """
         self.prepare()
-        destination = Path(origin.effective_destination)
+        destination = Path(directory) if directory else Path(origin.effective_destination)
         destination.mkdir(parents=True, exist_ok=True)
 
         fetch_art = self.store.get_bool("fetch_art", True)
@@ -234,7 +255,9 @@ class BeetsEngine:
         data: dict[str, Any] = {
             "library": str(self.settings.library_path),
             "directory": str(destination),
-            "statefile": str(self.settings.beets_dir / f"state-{origin.id}.pickle"),
+            "statefile": str(
+                self.settings.beets_dir / f"state-{origin.id}{variant}.pickle"
+            ),
             "create_backup_before_migrations": False,
             "plugins": plugins,
             "import": {
@@ -291,7 +314,7 @@ class BeetsEngine:
                 "remove_art_file": False,
             }
 
-        path = self.settings.origin_config_dir / f"{origin.id}.yaml"
+        path = self.settings.origin_config_dir / f"{origin.id}{variant}.yaml"
         self._write_yaml(path, data)
         return path
 
@@ -794,7 +817,15 @@ class BeetsEngine:
         ]
 
         mode = origin_mode(origin, self.store)
-        argv.append("-m" if mode == "move" else "-c")
+        if mode == "tag":
+            # `beet import -CMw`: write tags in place, never copy or move.
+            argv += ["-C", "-M", "-w"]
+        elif mode == "copy":
+            argv.append("-c")
+        else:
+            argv.append("-m")
+        if mode != "tag" and not self.store.get_bool("write_tags", True):
+            argv.append("-W")
 
         if kind == "singleton":
             argv.append("-s")
@@ -815,7 +846,7 @@ class BeetsEngine:
         argv.append(folder)
 
         before = self.max_item_id()
-        log.info("Importing %s (%s)", folder, "move" if mode == "move" else "copy")
+        log.info("Importing %s (%s)", folder, mode)
         try:
             proc = subprocess.run(
                 argv,
@@ -1063,6 +1094,103 @@ class BeetsEngine:
         self.invalidate_library_cache()
         return UpdateResult(True, output=tail("".join(outputs), 12000), warnings=warnings)
 
+    def organize_base(self, origin: Any, album_id: int) -> Path:
+        """Directory an album should be sorted into.
+
+        Albums that still live inside their origin (tag-only imports) are
+        sorted in place, below the origin folder. Albums imported with move or
+        copy keep using the origin destination.
+        """
+        origin_root = os.path.normpath(str(origin.path))
+        detail = self.album_detail(album_id)
+        paths = [
+            os.path.normpath(track["path"])
+            for track in (detail or {}).get("tracks", [])
+            if track.get("path")
+        ]
+        inside_origin = bool(paths) and all(
+            _is_within(path, origin_root) for path in paths
+        )
+        return Path(origin_root if inside_origin else origin.effective_destination)
+
+    def organize_album(self, origin: Any, album_id: int) -> OrganizeResult:
+        """Sort an album into the path formats, in place.
+
+        Uses `beet move`, so metadata is left untouched: the files only gain
+        their ideal `Artist/Album` layout (and their art moves with them).
+        """
+        detail = self.album_detail(album_id)
+        if detail is None:
+            return OrganizeResult(False, album_id, error="Album not found")
+        before = [track["path"] for track in detail["tracks"] if track.get("path")]
+
+        base = self.organize_base(origin, album_id)
+        config_path = self.write_origin_config(
+            origin, directory=base, variant="-organize"
+        )
+        argv = [
+            sys.executable,
+            "-m",
+            "beetser.beets_cli",
+            "-c",
+            str(config_path),
+            "move",
+            "-a",
+            "-d",
+            str(base),
+            f"id:{album_id}",
+        ]
+        proc = self._run_beets(argv)
+        output = (proc.stdout or "") + (proc.stderr or "")
+        if proc.returncode != 0:
+            return OrganizeResult(
+                False,
+                album_id,
+                before=before,
+                output=tail(output, 12000),
+                error=f"beets move failed with code {proc.returncode}",
+            )
+
+        self.invalidate_library_cache()
+        after = [
+            track["path"]
+            for track in (self.album_detail(album_id) or {}).get("tracks", [])
+            if track.get("path")
+        ]
+        return OrganizeResult(
+            True, album_id, before=before, after=after, output=tail(output, 12000)
+        )
+
+    def origin_album_ids(self, origin: Any) -> list[int]:
+        """Album ids tied to an origin, by beets flex attribute or path."""
+        con = self._connect()
+        if con is None:
+            return []
+        try:
+            rows = con.execute(
+                "SELECT i.id, i.album_id, i.path FROM items i "
+                "WHERE i.album_id IS NOT NULL"
+            ).fetchall()
+            tagged = {
+                row[0]
+                for row in con.execute(
+                    "SELECT entity_id FROM item_attributes "
+                    "WHERE key = 'beetser_origin' AND value = ?",
+                    (origin.id,),
+                )
+            }
+        except sqlite3.Error:
+            return []
+        finally:
+            con.close()
+
+        root = os.path.normpath(str(origin.path))
+        album_ids: set[int] = set()
+        for item_id, album_id, path in rows:
+            if item_id in tagged or _is_within(_decode_path(path) or "", root):
+                album_ids.add(album_id)
+        return sorted(album_ids)
+
     def _run_beets(self, argv: list[str]) -> subprocess.CompletedProcess:
         return subprocess.run(
             argv,
@@ -1183,7 +1311,7 @@ class BeetsEngine:
             return None
         try:
             row = con.execute(
-                "SELECT value FROM item_attributes WHERE item_id IN "
+                "SELECT value FROM item_attributes WHERE entity_id IN "
                 "(SELECT id FROM items WHERE album_id = ?) AND key = 'beetser_origin' "
                 "LIMIT 1",
                 (album_id,),
@@ -1218,11 +1346,20 @@ class BeetsEngine:
 # ----------------------------------------------------------------------
 
 
+IMPORT_MODES = ("tag", "move", "copy")
+
+
+def _is_within(path: str, root: str) -> bool:
+    path = os.path.normpath(path)
+    root = os.path.normpath(root)
+    return path == root or path.startswith(root.rstrip(os.sep) + os.sep)
+
+
 def origin_mode(origin: Any, store: SettingsStore) -> str:
-    if origin.import_mode in {"move", "copy"}:
+    if origin.import_mode in IMPORT_MODES:
         return origin.import_mode
-    mode = str(store.get("import_mode") or "move")
-    return mode if mode in {"move", "copy"} else "move"
+    mode = str(store.get("import_mode") or "tag")
+    return mode if mode in IMPORT_MODES else "tag"
 
 
 def _beetser_version() -> str:

@@ -29,7 +29,7 @@ export function AlbumEditModal({
   const [fields, setFields] = useState<Record<string, string>>({});
   const [tracks, setTracks] = useState<Record<number, TrackDraft>>({});
   const [writeTags, setWriteTags] = useState(true);
-  const [moveFiles, setMoveFiles] = useState(true);
+  const [moveFiles, setMoveFiles] = useState(false);
   const [artMtime, setArtMtime] = useState<number | null>(album.art_mtime ?? null);
   const [hasArt, setHasArt] = useState(Boolean(album.artpath));
   const fileInput = useRef<HTMLInputElement>(null);
@@ -60,7 +60,7 @@ export function AlbumEditModal({
     });
     setTracks(next);
     setWriteTags(true);
-    setMoveFiles(true);
+    setMoveFiles(false);
     setArtMtime(album.art_mtime ?? null);
     setHasArt(Boolean(album.artpath));
   }, [open, album.id]);
@@ -356,8 +356,8 @@ export function AlbumEditModal({
             disabled={busy}
           />
           <Switch
-            label="Move files to the new paths"
-            description="Reorganize the album if album artist, album name, year or track numbers changed."
+            label="Also reorganize the files"
+            description="Move the album into artist/album folders using the path format. Leave it off to keep the current folders."
             checked={moveFiles}
             onChange={setMoveFiles}
             disabled={busy}

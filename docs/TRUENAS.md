@@ -103,31 +103,114 @@ about.
 - **Resource use:** scanning hashes new files. A very large first-time library
   will temporarily use CPU/disk; subsequent scans only hash new files.
 
-## Community catalog chart (scaffold)
+## Publishing to the community catalog
 
-The folder [`catalog/ix-dev/stable/beetser`](catalog/ix-dev/stable/beetser)
-contains a starting point for a PR to the
-[`truenas/apps`](https://github.com/truenas/apps) repository:
+Beetser's app definition lives in
+[`catalog/ix-dev/community/beetser`](catalog/ix-dev/community/beetser) and is
+laid out exactly like the apps in
+[`truenas/apps`](https://github.com/truenas/apps):
 
 ```
-app.yaml              metadata (title, train, version, lib_version)
-ix_values.yaml        image tag and defaults
-questions.yaml        install wizard fields
-templates/
-  docker-compose.yaml rendered compose file
+app.yaml                          catalog metadata (train, versions, lib hash)
+item.yaml                         icon, screenshots and tags for the card
+ix_values.yaml                    image repository/tag and constants
+questions.yaml                    install wizard (groups, ports, storage)
+README.md                         description shown in the catalog
+templates/docker-compose.yaml     Jinja template rendered by the catalog library
+templates/test_values/*.yaml      installation scenarios used by CI
 ```
 
-Before submitting:
+It is written against catalog library **2.3.21** and renders with the
+`ix_lib` API (`add_container`, `deps.perms`, `add_storage`, ...), not with plain
+Docker Compose.
 
-1. Publish the image to a registry and set `images.image.repository/tag` in
-   `ix_values.yaml`.
-2. Bump `app_version`, `version`, `lib_version` and `lib_version_hash` to match
-   the current `truenas/apps` library release (the hash is provided by their
-   tooling).
-3. Add a real icon URL and maintainer details in `app.yaml`.
-4. Run the catalog validation tooling from `truenas/apps` (`python3
-   .github/scripts/validate.py` or their CI) — chart templating details change
-   between library versions, and this scaffold is intentionally minimal.
+### Licensing
 
-A custom app is the supported path today; the catalog chart is a convenience
-for publishing.
+| Component | License | What it means for publishing |
+| --- | --- | --- |
+| Beetser | MIT ([LICENSE](LICENSE)) | You can publish and redistribute it freely |
+| beets 2.14.1 | MIT | Redistribute with its copyright notice (in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) and `/app/licenses` inside the image) |
+| mutagen, Unidecode (beets dependencies) | GPL-2.0-or-later | Ship them unmodified and keep their source/license available (they are Python packages inside the image, so their sources travel with it) |
+| FFmpeg (Debian package), Chromaprint | GPL-2.0-or-later / LGPL-2.1-or-later | Invoked as separate binaries by beets; keep the notices and offer the sources |
+
+Bottom line: beets being MIT is what makes this publishable. The GPL pieces are
+unmodified third-party dependencies, not part of Beetser's own code, so the
+Beetser source stays MIT. The image ships `LICENSE`,
+`THIRD_PARTY_NOTICES.md` and the Debian copyright files under
+`/app/licenses` and `/usr/share/doc`.
+
+### Release checklist
+
+1. **Publish the image** so `ghcr.io/wabasi/beetser:<tag>` exists and is public:
+
+   ```bash
+   docker buildx build --platform linux/amd64,linux/arm64 \
+     -t ghcr.io/wabasi/beetser:0.1.0 --push .
+   ```
+
+   The catalog expects `ghcr.io`. Keep the tag equal to `app_version`.
+   Optionally pin the digest in `ix_values.yaml`
+   (`tag: "0.1.0@sha256:..."`) so installs are reproducible.
+
+2. **Bump the chart**: `app_version` (image tag) and `version` (chart) in
+   `app.yaml`, and `images.image.tag` in `ix_values.yaml`.
+
+3. **Refresh the library reference** when `truenas/apps` releases a newer
+   `library/<version>`: set `lib_version` in `app.yaml` and copy the value of
+   that version from `library/hashes.yaml` into `lib_version_hash`.
+
+4. **Validate** with the official tooling (Docker required). From a clone of
+   `truenas/apps` with this chart copied into
+   `ix-dev/community/beetser`:
+
+   ```bash
+   # structure + metadata validation
+   docker run --platform=linux/amd64 --rm -e FAKE_ENV=1 \
+     -e GIT_CONFIG_COUNT=1 -e GIT_CONFIG_KEY_0=safe.directory \
+     -e GIT_CONFIG_VALUE_0=/workspace \
+     -v "$PWD:/workspace" ghcr.io/truenas/apps_validation:slim \
+     apps_dev_charts_validate validate --path /workspace
+
+   # render each test scenario (needs pyyaml; use devbox shell if available)
+   python3 .github/scripts/ci.py --train community --app beetser \
+     --test-file basic-values.yaml --render-only=true --skip-metadata
+   python3 .github/scripts/ci.py --train community --app beetser \
+     --test-file host-path-values.yaml --render-only=true --skip-metadata
+   ```
+
+   Drop `--render-only=true` to also start the stack (requires the published
+   image) and verify the healthcheck.
+
+5. **Open an issue first** (`truenas/apps` asks for it in the PR template), then
+   a PR that only adds files under `ix-dev/community/beetser/`. Include in the
+   PR description: upstream link, app version, tested scenarios and the icon
+   plus screenshots — the reviewers upload them to
+   `https://media.sys.truenas.net/apps/beetser/` and give you the final URLs
+   for `app.yaml`/`item.yaml`.
+
+6. After merge, version bumps flow through their automation; you should not open
+   PRs just to change the image tag.
+
+### Install wizard
+
+The chart exposes the minimum needed for a working install:
+
+- **Administrator password** (optional; otherwise the UI asks for one on first
+  visit).
+- **User/group** to run as (defaults to `568:568`, TrueNAS' `apps` user).
+- **Web UI port** (default `8080`).
+- **Config storage** — `/config`, holds `library.db`, the app database and the
+  generated beets configs. Back this up.
+- **Media folders** — one storage entry per folder to watch, mounted at any
+  container path (for example `/media/soulseek`). Use that container path as the
+  origin path in the UI.
+
+Everything else (import mode, path formats, auto-tag threshold, notifications)
+is a runtime setting in the web UI, so upgrades never clobber it.
+
+### Before the first PR
+
+- The icon must be a square PNG ≥ 256×256. Screenshots should show the dashboard
+  and the review queue (see `docs/screenshots/`).
+- `app.yaml` currently points at `https://media.sys.truenas.net/apps/beetser/...`
+  placeholders; replace them with the URLs the reviewers provide.

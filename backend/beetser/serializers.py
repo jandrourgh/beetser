@@ -3,10 +3,27 @@
 from __future__ import annotations
 
 import os
+from types import SimpleNamespace
 from typing import Any
 
 from .models import Activity, Job, Origin
 from .utils import iso, loads
+
+
+def origin_spec(origin: Origin) -> SimpleNamespace:
+    """Detached snapshot of an origin, safe to use after the session closes."""
+    return SimpleNamespace(
+        id=origin.id,
+        name=origin.name,
+        path=origin.path,
+        destination=origin.destination,
+        effective_destination=origin.effective_destination,
+        import_mode=origin.import_mode,
+        path_format=origin.path_format,
+        singleton_path_format=origin.singleton_path_format,
+        auto_tag=origin.auto_tag,
+        auto_tag_threshold=origin.auto_tag_threshold,
+    )
 
 
 def origin_out(

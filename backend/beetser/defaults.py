@@ -6,7 +6,7 @@ from typing import Any
 
 DEFAULT_SETTINGS: dict[str, Any] = {
     # Import behaviour
-    "import_mode": "move",  # move | copy
+    "import_mode": "tag",  # tag (write tags in place) | move | copy
     "path_format": "$albumartist/$album%aunique{}/$track $title",
     "comp_path_format": "Compilations/$album%aunique{}/$track $title",
     "singleton_path_format": "Singletons/$artist/$title",

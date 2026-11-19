@@ -55,15 +55,26 @@ def make_flac(
     return path
 
 
-def wait_for_job(client, origin_id: str, states: set[str], timeout: float = 45.0):
+def wait_for_job(
+    client,
+    origin_id: str,
+    states: set[str],
+    timeout: float = 45.0,
+    job_id: str | None = None,
+):
     import time
 
     deadline = time.time() + timeout
     jobs: list[dict] = []
     while time.time() < deadline:
         jobs = client.get("/api/jobs", params={"origin_id": origin_id}).json()["jobs"]
-        if jobs and jobs[0]["state"] in states:
-            return jobs[0]
+        target = next((job for job in jobs if job["id"] == job_id), None) if job_id else None
+        if job_id is None:
+            target = jobs[0] if jobs else None
+        if target is not None and target["state"] in states:
+            return target
         time.sleep(0.2)
     assert jobs, "no job was created"
+    if job_id:
+        return next((job for job in jobs if job["id"] == job_id), jobs[0])
     return jobs[0]

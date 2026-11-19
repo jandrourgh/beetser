@@ -9,16 +9,17 @@ from pathlib import Path
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import func, select
 
-from ..beets_engine import origin_mode
+from ..beets_engine import BeetsEngine, origin_mode
 from ..db import Database
 from ..events import EventBus
 from ..jobs import ImportService
 from ..models import Job, Origin, TrackedFile
+from ..organize import organize_albums
 from ..schemas import OriginCreate, OriginTestRequest, OriginUpdate
-from ..serializers import origin_out
+from ..serializers import origin_out, origin_spec
 from ..settings_store import SettingsStore
 from ..utils import is_audio_file
-from .deps import get_bus, get_db, get_service, get_store, require_auth
+from .deps import get_bus, get_db, get_engine, get_service, get_store, require_auth
 
 router = APIRouter(prefix="/origins", tags=["origins"], dependencies=[Depends(require_auth)])
 log = logging.getLogger(__name__)
@@ -213,6 +214,25 @@ def scan_origin(
             raise HTTPException(404, "Origin not found")
     service.request_scan(origin_id, delay=0)
     return {"queued": True}
+
+
+@router.post("/{origin_id}/organize")
+def organize_origin(
+    origin_id: str,
+    db: Database = Depends(get_db),
+    engine: BeetsEngine = Depends(get_engine),
+) -> dict:
+    """Sort every album of an origin into artist/album folders."""
+    with db.session() as session:
+        origin = session.get(Origin, origin_id)
+        if origin is None:
+            raise HTTPException(404, "Origin not found")
+        spec = origin_spec(origin)
+
+    album_ids = engine.origin_album_ids(spec)
+    summary = organize_albums(db, engine, spec, album_ids)
+    summary["ok"] = summary["failed"] == 0
+    return summary
 
 
 @router.post("/{origin_id}/test")
