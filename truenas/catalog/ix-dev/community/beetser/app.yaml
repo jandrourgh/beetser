@@ -4,12 +4,12 @@ app_version: 0.1.0
 capabilities: []
 categories:
 - media
-changelog_url: https://github.com/wabasi/beetser/tags
+changelog_url: https://github.com/jandrourgh/beetser/tags
 date_added: '2026-11-19'
 description: A modern self-hosted frontend and automation layer for beets. Watches
   several folders, tags new albums with MusicBrainz, asks for confirmation when a
   match is unclear and keeps the beets library free of duplicates.
-home: https://github.com/wabasi/beetser
+home: https://github.com/jandrourgh/beetser
 host_mounts: []
 icon: https://media.sys.truenas.net/apps/beetser/icons/icon.png
 keywords:
@@ -37,8 +37,8 @@ screenshots:
 - https://media.sys.truenas.net/apps/beetser/screenshots/screenshot2.png
 sources:
 - https://apps.truenas.com/catalog/beetser_community/
-- https://ghcr.io/wabasi/beetser
-- https://github.com/wabasi/beetser
+- https://ghcr.io/jandrourgh/beetser
+- https://github.com/jandrourgh/beetser
 title: Beetser
 train: community
 version: 1.0.0

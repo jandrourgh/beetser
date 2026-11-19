@@ -38,9 +38,9 @@ FROM python:3.12-slim AS runtime
 
 LABEL org.opencontainers.image.title="Beetser" \
       org.opencontainers.image.description="Self-hosted beets frontend with watched origins, MusicBrainz tagging and a review queue" \
-      org.opencontainers.image.source="https://github.com/wabasi/beetser" \
-      org.opencontainers.image.url="https://github.com/wabasi/beetser" \
-      org.opencontainers.image.documentation="https://github.com/wabasi/beetser/tree/main/docs" \
+      org.opencontainers.image.source="https://github.com/jandrourgh/beetser" \
+      org.opencontainers.image.url="https://github.com/jandrourgh/beetser" \
+      org.opencontainers.image.documentation="https://github.com/jandrourgh/beetser/tree/main/docs" \
       org.opencontainers.image.licenses="MIT" \
       org.opencontainers.image.version="0.1.0"
 

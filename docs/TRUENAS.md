@@ -141,11 +141,11 @@ Beetser source stays MIT. The image ships `LICENSE`,
 
 ### Release checklist
 
-1. **Publish the image** so `ghcr.io/wabasi/beetser:<tag>` exists and is public:
+1. **Publish the image** so `ghcr.io/jandrourgh/beetser:<tag>` exists and is public:
 
    ```bash
    docker buildx build --platform linux/amd64,linux/arm64 \
-     -t ghcr.io/wabasi/beetser:0.1.0 --push .
+     -t ghcr.io/jandrourgh/beetser:0.1.0 --push .
    ```
 
    The catalog expects `ghcr.io`. Keep the tag equal to `app_version`.

@@ -1,6 +1,6 @@
 # Beetser
 
-[Beetser](https://github.com/wabasi/beetser) is a self-hosted web frontend and
+[Beetser](https://github.com/jandrourgh/beetser) is a self-hosted web frontend and
 automation layer for [beets](https://beets.io/).
 
 Point it at the folders your download clients write to. Beetser watches them,
