@@ -57,7 +57,7 @@ If you prefer the UI form, use:
 
 | Field | Value |
 | --- | --- |
-| Image | `ghcr.io/beetser/beetser:0.1.0` |
+| Image | `ghcr.io/jandrourgh/beetser:0.1.0` |
 | Port | `8080` → `8080` |
 | Storage | Host path `/mnt/tank/apps/beetser` → `/config` |
 | Storage | Host path `/mnt/tank/media/soulseek` → `/media/soulseek` |
@@ -141,16 +141,32 @@ Beetser source stays MIT. The image ships `LICENSE`,
 
 ### Release checklist
 
-1. **Publish the image** so `ghcr.io/jandrourgh/beetser:<tag>` exists and is public:
+1. **Publish the image** so `ghcr.io/jandrourgh/beetser:<tag>` exists and is
+   public. Pushing a `vX.Y.Z` tag runs
+   [`.github/workflows/container-image.yml`](../.github/workflows/container-image.yml),
+   which builds `linux/amd64` + `linux/arm64` and pushes `X.Y.Z`, `X.Y`,
+   `sha-<commit>` and `latest` to GHCR:
+
+   ```bash
+   git tag v0.1.0
+   git push origin v0.1.0
+   ```
+
+   The first run creates a **private** package; open the package settings on
+   GitHub and switch its visibility to *public* so TrueNAS can pull it without
+   credentials. Pulls are anonymous afterwards.
+
+   The catalog expects `ghcr.io`. Keep the tag equal to `app_version`. The
+   workflow prints the multi-arch digest in the run summary; optionally pin it
+   in `ix_values.yaml` (`tag: "0.1.0@sha256:..."`) so installs are
+   reproducible.
+
+   Without CI (or to rebuild by hand), the equivalent local command is:
 
    ```bash
    docker buildx build --platform linux/amd64,linux/arm64 \
      -t ghcr.io/jandrourgh/beetser:0.1.0 --push .
    ```
-
-   The catalog expects `ghcr.io`. Keep the tag equal to `app_version`.
-   Optionally pin the digest in `ix_values.yaml`
-   (`tag: "0.1.0@sha256:..."`) so installs are reproducible.
 
 2. **Bump the chart**: `app_version` (image tag) and `version` (chart) in
    `app.yaml`, and `images.image.tag` in `ix_values.yaml`.

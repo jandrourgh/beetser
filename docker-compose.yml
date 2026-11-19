@@ -3,7 +3,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    image: beetser:local
+    image: ghcr.io/jandrourgh/beetser:${BEETSER_IMAGE_TAG:-latest}
     container_name: beetser
     restart: unless-stopped
     ports:

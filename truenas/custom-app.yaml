@@ -7,7 +7,7 @@
 
 services:
   beetser:
-    image: ghcr.io/beetser/beetser:0.1.0
+    image: ghcr.io/jandrourgh/beetser:0.1.0
     container_name: beetser
     restart: unless-stopped
     ports:

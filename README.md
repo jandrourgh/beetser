@@ -43,11 +43,21 @@ adds the parts that make it a comfortable always-on service:
 ## Quick start
 
 ```bash
-git clone https://github.com/beetser/beetser.git
+git clone https://github.com/jandrourgh/beetser.git
 cd beetser
 cp .env.example .env          # optional
-docker compose up -d --build
+docker compose pull           # ghcr.io/jandrourgh/beetser
+docker compose up -d
 ```
+
+Prefer building from source? Use `docker compose up -d --build` instead; the
+Compose file also keeps the `build:` section for that. Published images are
+multi-arch (`linux/amd64`, `linux/arm64`) and tagged `latest`, `X.Y.Z` (from
+`vX.Y.Z` git tags) and `sha-<commit>`.
+
+> GHCR packages start private. Either make this one public (package settings →
+> *Change visibility*) so anonymous `docker compose pull` works, or run
+> `docker login ghcr.io` first.
 
 Open <http://localhost:8080>. On first launch you can create the admin password
 in the UI (or set `BEETSER_PASSWORD` in the environment).
@@ -143,6 +153,8 @@ sync.
 ## Deployment
 
 - Single container, port `8080`.
+- Published image: `ghcr.io/jandrourgh/beetser` for `linux/amd64` and `linux/arm64`
+  (`latest`, release versions and `sha-<commit>` tags).
 - `/config` holds the library database, Beetser state, generated beets configs,
   logs and the session secret. Back it up.
 - Media paths are whatever you mount; nothing is assumed.

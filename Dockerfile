@@ -40,7 +40,7 @@ LABEL org.opencontainers.image.title="Beetser" \
       org.opencontainers.image.description="Self-hosted beets frontend with watched origins, MusicBrainz tagging and a review queue" \
       org.opencontainers.image.source="https://github.com/jandrourgh/beetser" \
       org.opencontainers.image.url="https://github.com/jandrourgh/beetser" \
-      org.opencontainers.image.documentation="https://github.com/jandrourgh/beetser/tree/main/docs" \
+      org.opencontainers.image.documentation="https://github.com/jandrourgh/beetser/tree/master/docs" \
       org.opencontainers.image.licenses="MIT" \
       org.opencontainers.image.version="0.1.0"
 
