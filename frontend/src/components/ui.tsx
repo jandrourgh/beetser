@@ -378,12 +378,12 @@ export function EmptyState({
 /* ------------------------------------------------------------------ */
 
 const gradients = [
-  "from-violet-500/70 to-fuchsia-500/40",
+  "from-red-500/70 to-rose-500/40",
   "from-cyan-500/60 to-blue-600/40",
   "from-emerald-500/60 to-teal-600/40",
   "from-amber-500/60 to-orange-600/40",
   "from-rose-500/60 to-pink-600/40",
-  "from-indigo-500/60 to-purple-600/40",
+  "from-red-600/60 to-red-800/40",
 ];
 
 export function Cover({
